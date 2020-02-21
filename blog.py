@@ -56,13 +56,35 @@ def login():
 @app.route("/main")
 @login_required
 def main():
-    return render_template("main.html")
+    g.db = connect_db()
+    cur = g.db.execute("SELECT * FROM posts")
+    posts = [dict(title=row[0], post=row[1]) for row in cur.fetchall()]
+    g.db.close()
+    return render_template("main.html", posts=posts)
 
 @app.route("/logout")
 def logout():
     session.pop("logged_in", None)
     flash("You were logged out")
     return redirect(url_for("login"))
+
+@app.route("/add", methods=["POST"])
+@login_required
+def add():
+    title = request.form["title"]
+    post = request.form["post"]
+    if not title or not post:
+        flash("All fields are required. Please try again.")
+        return redirect(url_for("main"))
+    else:
+        g.db = connect_db()
+        g.db.execute("INSERT INTO posts (title, post) VALUES (?, ?)",
+            [request.form["title"], request.form["post"]])
+        g.db.commit()
+        g.db.close()
+        flash ("New entry was succesfully added")
+        return redirect(url_for("main"))
+
 
 
 if __name__ == "__main__":
